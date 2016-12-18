@@ -4,13 +4,20 @@ package com.myjava.collection;
 import java.io.Serializable;
 import java.util.AbstractList;
 import java.util.Collection;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.RandomAccess;
 
-
+/**
+ * @see java.util.ArrayList
+ * @param <E>
+ */
 public class ArrayList<E> extends AbstractList<E> implements Serializable,RandomAccess {
 
     private static final long serialVersionUID = -4487349573434744861L;
     private Object[] array;
+    private transient int modCount = 0;
 
     private final static int initCapacity = 10;
 
@@ -47,6 +54,7 @@ public class ArrayList<E> extends AbstractList<E> implements Serializable,Random
 
     @Override
     public boolean add(E e) {
+        modCount++;
         if(size == array.length){
             large(10);
         }
@@ -62,6 +70,7 @@ public class ArrayList<E> extends AbstractList<E> implements Serializable,Random
 
     @Override
     public boolean addAll(Collection<? extends E> c) {
+        modCount++;
         if(c.size()+size>=array.length){
             large(c.size());
         }
@@ -70,6 +79,7 @@ public class ArrayList<E> extends AbstractList<E> implements Serializable,Random
 
     @Override
     public boolean addAll(int index, Collection<? extends E> c) {
+        modCount++;
         if(c.size()+size>=array.length){
             large(c.size());
         }
@@ -99,6 +109,7 @@ public class ArrayList<E> extends AbstractList<E> implements Serializable,Random
         if(index<0||index>size){
             throw new IndexOutOfBoundsException(index+",size:"+size);
         }
+        modCount++;
         if(size == array.length){
             large(10);
         }
@@ -113,6 +124,7 @@ public class ArrayList<E> extends AbstractList<E> implements Serializable,Random
     @Override
     public E set(int index, E element) {
         checkIndex(index);
+        modCount++;
         E old = (E) array[index];
         array[index] = element;
         return old;
@@ -121,6 +133,7 @@ public class ArrayList<E> extends AbstractList<E> implements Serializable,Random
     @Override
     public E remove(int index) {
         checkIndex(index);
+        modCount++;
         E value = (E) array[index];
         for(int i=index+1;i<size;i++){
             array[i-1]=array[i];
@@ -140,13 +153,66 @@ public class ArrayList<E> extends AbstractList<E> implements Serializable,Random
     }
 
     @Override
+    public Iterator<E> iterator() {
+        return new ArrayListItr();
+    }
+
+    @Override
     public void clear() {
+        modCount++;
         size = 0;
     }
 
     @Override
     public String toString() {
         return super.toString();
+    }
+
+    private class ArrayListItr implements Iterator<E>{
+
+        int cursor;
+        int lastRet = -1;
+        int expectedModCount = ArrayList.this.modCount;
+
+        @Override
+        public boolean hasNext() {
+           return cursor!=size;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public E next() {
+            checkForComodification();
+            int i = cursor;
+            if (i >= size)
+                throw new NoSuchElementException();
+            if(i >= array.length){
+                throw new ConcurrentModificationException();
+            }
+            cursor = i+1;
+            return (E) array[lastRet = i];
+        }
+
+        public void remove() {
+            if(lastRet<0){
+                throw new IllegalStateException();
+            }
+            checkForComodification();
+            try {
+                ArrayList.this.remove(lastRet);
+                cursor = lastRet;
+                lastRet = -1;
+                expectedModCount = modCount;
+            }catch (IndexOutOfBoundsException e){
+                throw new ConcurrentModificationException();
+            }
+        }
+
+        private void checkForComodification() {
+            if (ArrayList.this.modCount == this.expectedModCount)
+                return;
+            throw new ConcurrentModificationException();
+        }
     }
 
     public static void main(String[] args) {

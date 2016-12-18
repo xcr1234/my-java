@@ -15,7 +15,7 @@ public class HashSet<E> extends AbstractSet<E> implements Serializable{
     private static final long serialVersionUID = -2914675136220136027L;
 
     private HashMap<E,Object> map;
-    private static final Object OBJECT = new Object();
+    private static final Integer OBJECT = 1; //用Integer当做内部的OBJECT，简单小巧、还支持序列化。
 
     public HashSet(){
         map = new HashMap<E, Object>();

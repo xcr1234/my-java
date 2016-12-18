@@ -3,6 +3,8 @@ package com.myjava.collection;
 import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.AbstractSet;
+import java.util.Arrays;
+import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -20,6 +22,8 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
 
     private static final int initCapacity = 16;
     private static final double loadFactor = 0.75;
+
+    private transient int modCount = 0;
 
     @SuppressWarnings("unchecked")
     public HashMap(){
@@ -63,6 +67,7 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
 
     @SuppressWarnings("unchecked")
     private void resize(int newLength){
+        modCount++;
         //hashmap扩容，newLength一般是原table的2倍。
         LinkedList<HashMapEntry<K,V>>[] newTable = new LinkedList[newLength];
         //遍历原table中每个元素，重新计算hash值，放到newTable中.
@@ -85,32 +90,50 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
     public Set<Entry<K, V>> entrySet() {
         final class EntryItr implements Iterator<Entry<K, V>> {
 
-            private int i,size,t;
-            private LinkedList<HashMapEntry<K,V>> currentList;
-            private Iterator<HashMapEntry<K,V>> currentIterator;
+            private int expectedMod = modCount;
+            private Iterator<HashMapEntry<K, V>> iterator;
+            private int index;
 
             EntryItr(){
-                i=t=0;
-                size = HashMap.this.size();
-                currentList = table[t];
+                index = 0;
             }
 
             @Override
             public boolean hasNext() {
-                return i<size;
+                checkMod();
+                LinkedList<HashMapEntry<K, V>> list = null;
+                while (list == null && index < table.length) {
+                    list = table[index++];
+                }
+                if (list == null) {
+                    return false;
+                }
+                iterator = list.iterator();
+                return iterator.hasNext() || hasNext();
             }
 
             @Override
             public Entry<K, V> next() {
-                while (currentList==null||currentList.isEmpty()||currentIterator==null||!currentIterator.hasNext()){
-                    t++;
-                    currentList = HashMap.this.table[t];
-                    if(currentList!=null&&!currentList.isEmpty()){
-                        currentIterator = currentList.iterator();
-                    }
+                checkMod();
+                if(iterator==null){
+                    throw new IllegalStateException();
                 }
-                i++;
-                return currentIterator.next();
+                return iterator.next();
+            }
+
+
+            public void remove() {
+                checkMod();
+                if(iterator==null){
+                    throw new IllegalStateException();
+                }
+                iterator.remove();
+            }
+
+            private void checkMod(){
+                if(modCount!=expectedMod){
+                    throw new ConcurrentModificationException();
+                }
             }
         }
         final class EntrySet extends AbstractSet<Entry<K,V>> {
@@ -131,7 +154,7 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
 
             @Override
             public boolean contains(Object o) {
-                return super.contains(o);
+                return HashMap.this.containsKey(o);
             }
 
             @Override
@@ -140,7 +163,12 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
                     Map.Entry<?,?> e = (Map.Entry<?,?>) o;
                     Object key = e.getKey();
                     Object value = e.getValue();
-                    return HashMap.this.remove(key,value);
+                    Object rVal = get(key);
+                    if(!objectEquals(rVal,value)||(rVal == null && !containsKey(key))){
+                        return false;
+                    }
+                    HashMap.this.remove(key);
+                    return true;
                 }
                 return false;
             }
@@ -148,6 +176,8 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
 
         return new EntrySet();
     }
+
+
 
     @Override
     public int size() {
@@ -178,6 +208,7 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
 
     @Override
     public V put(K key, V value) {
+        modCount++;
         int h = hash(key);
         LinkedList<HashMapEntry<K,V>> list = table[h];
         if(list == null){
@@ -198,6 +229,7 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
 
     @Override
     public V remove(Object key) {
+        modCount++;
         int h = hash(key);
         LinkedList<HashMapEntry<K,V>> list = table[h];
         if(list==null){
@@ -215,6 +247,7 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
 
     @Override
     public void clear() {
+        modCount++;
         for(int i=0;i<table.length;i++){
             table[i] = null;
         }
@@ -279,6 +312,10 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
             result = 31 * result + (value != null ? value.hashCode() : 0);
             return result;
         }
+    }
+
+    void debug(){
+        System.out.print(Arrays.toString(table));
     }
 
     public static void main(String[] args) {

@@ -4,24 +4,28 @@ package com.myjava.collection;
 import java.io.*;
 import java.util.AbstractList;
 import java.util.Collection;
+import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * 自己实现的链表
+ * @see java.util.LinkedList
  */
 public class LinkedList<E> extends AbstractList<E> implements List<E>,Externalizable {
 
     private static final long serialVersionUID = -4851064770587108388L;
     private final Node<E> head;
     private Node<E> bottom;
+    private transient int modCount = 0;
 
     public LinkedList(){
         head = new Node<E>(null);
         bottom = head;
     }
 
-    public LinkedList(Collection<E> collection){
+    public LinkedList(Collection<? extends E> collection){
         this();
         addAll(collection);
     }
@@ -45,6 +49,7 @@ public class LinkedList<E> extends AbstractList<E> implements List<E>,Externaliz
 
     @Override
     public boolean add(E e) {
+        modCount++;
         Node<E> node = new Node<E>(e);
         bottom.next = node;
         bottom = node;
@@ -81,6 +86,7 @@ public class LinkedList<E> extends AbstractList<E> implements List<E>,Externaliz
 
     @Override
     public E set(int index, E element) {
+        modCount++;
         Node<E> node = findNode(index);
         E old = node.value;
         node.value = element;
@@ -89,6 +95,7 @@ public class LinkedList<E> extends AbstractList<E> implements List<E>,Externaliz
 
     @Override
     public void add(int index, E element) {
+        modCount++;
         Node<E> node = findPrevNode(index);
         Node<E> eleNode = new Node<E>(element,node.next);
         if(node.next==null){
@@ -99,6 +106,7 @@ public class LinkedList<E> extends AbstractList<E> implements List<E>,Externaliz
 
     @Override
     public E remove(int index) {
+        modCount++;
         Node<E> node = findPrevNode(index);
         Node<E> current = node.next;
         if(current==null){
@@ -115,6 +123,7 @@ public class LinkedList<E> extends AbstractList<E> implements List<E>,Externaliz
 
     @Override
     public void clear() {
+        modCount++;
         head.next = null;
         bottom = head;
     }
@@ -144,7 +153,7 @@ public class LinkedList<E> extends AbstractList<E> implements List<E>,Externaliz
         }
     }
 
-    private static class Node<E> implements Serializable {
+    private static class Node<E> {
         Node(E value){
             this.value = value;
         }
@@ -158,19 +167,51 @@ public class LinkedList<E> extends AbstractList<E> implements List<E>,Externaliz
 
     private class LinkedListItr implements Iterator<E>{
 
-        private Node<E> current = head;
+        private int mod = modCount;
+        private Node<E> node = head;
+        private Node<E> prev;
+        private boolean removed = false;
 
         @Override
         public boolean hasNext() {
-            return current.next!=null;
+            prev = null;
+            return node.next != null;
         }
 
         @Override
         public E next() {
-            current = current.next;
-            return current.value;
+            checkMod();
+            if(node.next==null){
+                throw new NoSuchElementException();
+            }
+            removed = false;
+            prev = node;
+            node = node.next;
+            return node.value;
         }
 
+
+        public void remove() {
+            checkMod();
+            if(prev==null){
+                throw new IllegalStateException("the next method has not yet been called.");
+            }
+            if(removed ||node==null){
+                throw new IllegalStateException("the remove method has already been called after the last call to the next method.");
+            }
+            removed = true;
+            if(node.next==null){
+                bottom = prev;
+            }
+            prev.next = node.next;
+            node = prev;
+        }
+
+        private void checkMod(){
+            if(mod!=modCount){
+                throw new ConcurrentModificationException();
+            }
+        }
     }
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
