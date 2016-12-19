@@ -13,7 +13,7 @@ import java.util.RandomAccess;
  * @see java.util.ArrayList
  * @param <E>
  */
-public class ArrayList<E> extends AbstractList<E> implements Serializable,RandomAccess {
+public class ArrayList<E> extends AbstractList<E> implements Serializable,RandomAccess,Cloneable {
 
     private static final long serialVersionUID = -4487349573434744861L;
     private Object[] array;
@@ -84,6 +84,25 @@ public class ArrayList<E> extends AbstractList<E> implements Serializable,Random
             large(c.size());
         }
         return super.addAll(index, c);
+    }
+
+    /**
+     * 对ArrayList的数组进行克隆，内部的元素不克隆。
+     * @return 克隆后的结果
+     */
+    @Override
+    public Object clone() {
+        try {
+            ArrayList<?> list = (ArrayList<?>) super.clone();
+            list.array = new Object[array.length];
+            for(int i=0;i<size;i++){
+                list.array[i] = array[i];
+            }
+            list.modCount = 0;
+            return list;
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

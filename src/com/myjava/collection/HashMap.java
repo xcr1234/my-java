@@ -15,7 +15,7 @@ import java.util.Set;
  *
  * @see java.util.HashMap
  */
-public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializable {
+public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializable,Cloneable {
 
     private static final long serialVersionUID = 4340114131866878570L;
     private LinkedList<HashMapEntry<K,V>>[] table;
@@ -177,7 +177,23 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
         return new EntrySet();
     }
 
-
+    @Override
+    public Object clone(){
+        try {
+            HashMap map = (HashMap) super.clone();
+            map.table = new LinkedList[this.table.length];
+            for(int i=0;i<this.table.length;i++){
+                LinkedList<HashMapEntry<K,V>> list = this.table[i];
+                if(list!=null){
+                    map.table[i] = (LinkedList<HashMapEntry>) list.clone();
+                }
+            }
+            map.modCount = 0;
+            return map;
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @Override
     public int size() {
@@ -239,10 +255,30 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
         for(int i=0;iterator.hasNext();i++){
             HashMapEntry<K,V> entry = iterator.next();
             if(objectEquals(entry.key,key)){
-                return list.remove(i).value;
+                iterator.remove();
+                return entry.value;
             }
         }
         return null;
+    }
+
+    @Override
+    public boolean remove(Object key, Object value) {
+        modCount++;
+        int h = hash(key);
+        LinkedList<HashMapEntry<K,V>> list = table[h];
+        if(list==null){
+            return false;
+        }
+        Iterator<HashMapEntry<K,V>> iterator = list.iterator();
+        for(int i=0;iterator.hasNext();i++){
+            HashMapEntry<K,V> entry = iterator.next();
+            if(objectEquals(entry.key,key) && objectEquals(entry.value,value)){
+                iterator.remove();
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -339,6 +375,12 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>,Serializa
         Set<Entry<String,Integer>> set = map2.entrySet();
         set.remove(new HashMapEntry<>("abc",40));
         System.out.println(set);
+        System.out.println(map2);
+
+        HashMap<String,Integer> clone = (HashMap<String, Integer>) map2.clone();
+        clone.put("clone",1);
+        clone.remove("222",2);
+        System.out.println(clone);
         System.out.println(map2);
     }
 }

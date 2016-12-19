@@ -2,21 +2,16 @@ package com.myjava.collection;
 
 
 import java.io.*;
-import java.util.AbstractList;
-import java.util.Collection;
-import java.util.ConcurrentModificationException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 /**
  * 自己实现的链表
  * @see java.util.LinkedList
  */
-public class LinkedList<E> extends AbstractList<E> implements List<E>,Externalizable {
+public class LinkedList<E> extends AbstractList<E> implements List<E>,Externalizable,Cloneable {
 
     private static final long serialVersionUID = -4851064770587108388L;
-    private final Node<E> head;
+    private Node<E> head;
     private Node<E> bottom;
     private transient int modCount = 0;
 
@@ -55,6 +50,21 @@ public class LinkedList<E> extends AbstractList<E> implements List<E>,Externaliz
         bottom = node;
         return true;
     }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Object clone() {
+        try {
+            LinkedList linkedList = (LinkedList) super.clone();
+            linkedList.head = new Node(null);
+            linkedList.bottom = linkedList.head;
+            linkedList.addAll(this);
+            return linkedList;
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     private Node<E> findNode(int index){
         if(index<0){
@@ -193,11 +203,8 @@ public class LinkedList<E> extends AbstractList<E> implements List<E>,Externaliz
 
         public void remove() {
             checkMod();
-            if(prev==null){
-                throw new IllegalStateException("the next method has not yet been called.");
-            }
-            if(removed ||node==null){
-                throw new IllegalStateException("the remove method has already been called after the last call to the next method.");
+            if(removed||prev==null||node==null){
+                throw new IllegalStateException();
             }
             removed = true;
             if(node.next==null){
@@ -248,5 +255,10 @@ public class LinkedList<E> extends AbstractList<E> implements List<E>,Externaliz
         ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
         ObjectInputStream ois = new ObjectInputStream(bais);
         System.out.println(ois.readObject());
+
+        LinkedList<Integer> clone = (LinkedList<Integer>) linkedList.clone();
+        clone.add(5);
+        System.out.println(linkedList);
+        System.out.println(clone);
     }
 }
